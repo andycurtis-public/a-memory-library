@@ -262,6 +262,7 @@ static size_t count_bytes_in_array(char **a, size_t *n) {
     num++;
     a++;
   }
+  if (n) *n = num;   // <-- missing in current code
   return len;
 }
 
@@ -287,32 +288,32 @@ char **aml_pool_strdupa(aml_pool_t *pool, char **a) {
 }
 
 static size_t count_bytes_in_arrayn(char **a, size_t num) {
-  size_t len = (sizeof(char *) * (num + 1));
+  size_t len = sizeof(char *) * (num + 1);
   for (size_t i = 0; i < num; i++) {
-    len += strlen(*a) + 1;
-    a++;
+    if (!a[i]) continue;          // allow NULLs in the first num entries
+    len += strlen(a[i]) + 1;      // include '\0'
   }
   return len;
 }
 
 char **aml_pool_strdupan(aml_pool_t *pool, char **a, size_t n) {
-  if (!a)
-    return NULL;
+  if (!a) return NULL;
 
   size_t len = count_bytes_in_arrayn(a, n);
   char **r = (char **)aml_pool_alloc(pool, len);
   char *m = (char *)(r + n + 1);
-  char **rp = r;
-  char **ae = a + n;
-  while (a < ae) {
-    *rp++ = m;
-    char *s = *a;
-    while (*s)
-      *m++ = *s++;
-    *m++ = 0;
-    a++;
+
+  for (size_t i = 0; i < n; i++) {
+    if (a[i]) {
+      r[i] = m;
+      const char *s = a[i];
+      while (*s) *m++ = *s++;
+      *m++ = '\0';
+    } else {
+      r[i] = NULL;  // preserve NULL pointers in the array
+    }
   }
-  *rp = NULL;
+  r[n] = NULL;
   return r;
 }
 

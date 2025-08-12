@@ -52,6 +52,7 @@ static inline aml_buffer_t *aml_buffer_pool_init(aml_pool_t *pool,
                                                size_t initial_size);
 
 /* destroy the buffer */
+static inline
 void aml_buffer_destroy(aml_buffer_t *h);
 
 /* detach the buffer from the aml_buffer_t object.  The caller now owns the

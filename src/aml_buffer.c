@@ -33,13 +33,6 @@ aml_buffer_t *_aml_buffer_init(size_t initial_size) {
   return h;
 }
 
-void aml_buffer_destroy(aml_buffer_t *h) {
-  if (!h->pool) {
-    aml_free(h->data);
-    aml_free(h);
-  }
-}
-
 void _aml_buffer_append(aml_buffer_t *h, const void *data, size_t length) {
   if (h->length + length > h->size)
     _aml_buffer_grow(h, h->length + length);

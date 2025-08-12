@@ -151,6 +151,8 @@ void aml_allocator_init() {
 
 void _aml_alloc_log(const char *filename) {
   aml_allocator_t *a = global_allocator;
+  if (a->logfile) { free(a->logfile); a->logfile = NULL; }
+  if (!filename) return;
   a->logfile = strdup(filename);
   if (filename) {
     pthread_cond_init(&a->cond, NULL);
@@ -317,12 +319,14 @@ static size_t count_bytes_in_array(char **a, size_t *n) {
 }
 
 static size_t count_bytes_in_arrayn(char **a, size_t num) {
-  size_t len = (sizeof(char *) * (num + 1));
-  for (size_t i = 0; i < num; i++) {
-    len += strlen(*a) + 1;
-    a++;
-  }
-  return len;
+    /* Reserve space for exactly num pointers + one final NULL */
+    size_t len = sizeof(char *) * (num + 1);
+    for (size_t i = 0; i < num; i++) {
+        if (a[i]) {
+            len += strlen(a[i]) + 1; /* bytes for this string including '\0' */
+        }
+    }
+    return len;
 }
 
 char **_aml_strdupa2_d(const char *caller, char **a) {
@@ -370,25 +374,30 @@ char **_aml_strdupa_d(const char *caller, char **a) {
   return r;
 }
 
-char **_aml_strdupan_d(const char *caller, char **a, size_t n) {
-  if (!a)
-    return NULL;
 
-  size_t len = count_bytes_in_arrayn(a, n);
-  char **r = (char **)_aml_malloc_d(caller, len, false);
-  char *m = (char *)(r + n + 1);
-  char **rp = r;
-  while (*a) {
-    *rp++ = m;
-    char *s = *a;
-    while (*s)
-      *m++ = *s++;
-    *m++ = 0;
-    a++;
-  }
-  *rp = NULL;
-  return r;
+char **_aml_strdupan_d(const char *caller, char **a, size_t n) {
+    if (!a)
+        return NULL;
+
+    size_t len = count_bytes_in_arrayn(a, n);
+    char **r = (char **)_aml_malloc_d(caller, len, false);
+    char *m = (char *)(r + n + 1);
+    char **rp = r;
+
+    for (size_t i = 0; i < n; i++) {
+        if (a[i]) {
+            *rp++ = m;
+            const char *s = a[i];
+            while (*s) *m++ = *s++;
+            *m++ = '\0';
+        } else {
+            *rp++ = NULL;
+        }
+    }
+    *rp = NULL; /* always terminate pointer array */
+    return r;
 }
+
 
 char **_aml_strdupa(char **a) {
   if (!a)
@@ -412,24 +421,28 @@ char **_aml_strdupa(char **a) {
 }
 
 char **_aml_strdupan(char **a, size_t n) {
-  if (!a)
-    return NULL;
+    if (!a)
+        return NULL;
 
-  size_t len = count_bytes_in_arrayn(a, n);
-  char **r = (char **)malloc(len);
-  char *m = (char *)(r + n + 1);
-  char **rp = r;
-  while (*a) {
-    *rp++ = m;
-    char *s = *a;
-    while (*s)
-      *m++ = *s++;
-    *m++ = 0;
-    a++;
-  }
-  *rp = NULL;
-  return r;
+    size_t len = count_bytes_in_arrayn(a, n);
+    char **r = (char **)malloc(len);
+    char *m = (char *)(r + n + 1);
+    char **rp = r;
+
+    for (size_t i = 0; i < n; i++) {
+        if (a[i]) {
+            *rp++ = m;
+            const char *s = a[i];
+            while (*s) *m++ = *s++;
+            *m++ = '\0';
+        } else {
+            *rp++ = NULL;
+        }
+    }
+    *rp = NULL;
+    return r;
 }
+
 
 static aml_allocator_node_t *get_aml_node(const char *caller, void *p, const char *message) {
   aml_allocator_t* a = global_allocator;

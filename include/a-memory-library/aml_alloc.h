@@ -55,7 +55,6 @@ extern "C" {
 #define aml_free(p) free(p)
 #endif
 
-
 void _aml_dump(FILE *out);
 
 void _aml_alloc_log(const char *filename);
@@ -101,6 +100,15 @@ static inline void *_aml_dup(const void *p, size_t len) {
   void *r = malloc(len);
   memcpy(r, p, len);
   return r;
+}
+
+static inline
+void _aml_free(void *p) {
+#ifdef _AML_DEBUG_
+    _aml_free_d(aml_file_line(), p);
+#else
+    free(p);
+#endif
 }
 
 #ifdef __cplusplus

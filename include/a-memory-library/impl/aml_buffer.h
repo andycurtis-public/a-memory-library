@@ -26,25 +26,72 @@ static inline aml_buffer_t *aml_buffer_pool_init(aml_pool_t *pool,
 }
 
 static inline
+void aml_buffer_destroy(aml_buffer_t *h) {
+  if (!h->pool) {
+    /* If data points inside the object, it's the inline sentinel and must
+       not be freed. Otherwise it's a heap buffer we own. */
+    uintptr_t pb = (uintptr_t)h;
+    uintptr_t pe = pb + sizeof(*h);
+    uintptr_t pd = (uintptr_t)h->data;
+    if (!(pd >= pb && pd < pe)) {
+      aml_free(h->data);
+    }
+    aml_free(h);
+  }
+}
+
+
+static inline
 char *aml_buffer_detach(aml_buffer_t *h, size_t *length_out) {
     if (!h) {
         if (length_out) *length_out = 0;
         return NULL;
     }
 
-    char *data = h->data;
-    size_t length = h->length;
+    char *ret = NULL;
+    size_t len = h->length;
 
-    // Reset the buffer to an empty state
-    h->data = NULL;
-    h->length = 0;
-    h->size = 0;
+    if (h->pool) {
+        /* Pool-backed: return pool memory (caller must NOT free). */
+        ret = h->data;
 
-    // The caller now owns 'data' and should free it when done
-    if (length_out) *length_out = length;
+        /* Reset handle to an empty/sentinel state so it can be reused. */
+        h->data   = (char *)&h->size;  /* sentinel points inside the struct */
+        h->length = 0;
+        h->size   = 0;
+        h->data[0] = '\0';
+    } else {
+        /* Heap-backed */
+        /* Detect if we were still using the inline sentinel. */
+        uintptr_t pb = (uintptr_t)h;
+        uintptr_t pe = pb + sizeof(*h);
+        uintptr_t pd = (uintptr_t)h->data;
+        bool is_sentinel = (pd >= pb && pd < pe);
 
-    return data;
+        if (is_sentinel) {
+            /* No real heap buffer yet: allocate a minimal heap buffer the
+               caller can safely free. Length is 0, so 1 byte is fine. */
+            size_t alloc = (len > 0) ? len : 1;
+            ret = (char *)aml_malloc(alloc);
+            /* Nothing to copy (no user data was stored); just NUL-terminate. */
+            if (alloc > 0) ret[0] = '\0';
+        } else {
+            /* Transfer ownership of the existing heap allocation. */
+            ret = h->data;
+        }
+
+        /* Restore sentinel on the handle so future appends/grows have a
+           valid 1-byte source for memcpy of the NUL terminator. */
+        h->data   = (char *)&h->size;
+        h->length = 0;
+        h->size   = 0;
+        h->data[0] = '\0';
+    }
+
+    if (length_out) *length_out = len;
+    return ret;
 }
+
 
 static inline void aml_buffer_clear(aml_buffer_t *h) {
   h->length = 0;

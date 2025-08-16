@@ -234,7 +234,7 @@ MACRO_TEST(pool_base64_roundtrip) {
     // empty inputs behave
     char *b64e = aml_pool_base64_encode(p, (const unsigned char*)"", 0);
     MACRO_ASSERT_STREQ(b64e, "");
-    unsigned char *dec_e = aml_pool_base64_decode(p, &out_len, "");
+    (void)aml_pool_base64_decode(p, &out_len, "");
     MACRO_ASSERT_EQ_SZ(out_len, 0);
 
     aml_pool_destroy(p);

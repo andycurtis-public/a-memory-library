@@ -1,6 +1,7 @@
-// SPDX-FileCopyrightText: 2019-2025 Andy Curtis <contactandyc@gmail.com>
-// SPDX-FileCopyrightText: 2024-2025 Knode.ai
+// SPDX-FileCopyrightText: 2019–2025 Andy Curtis <contactandyc@gmail.com>
+// SPDX-FileCopyrightText: 2024–2025 Knode.ai — technical questions: contact Andy (above)
 // SPDX-License-Identifier: Apache-2.0
+
 /*
   The aml_pool provides an api similar to malloc, calloc, strdup, along with many
   other useful common allocation patterns with the exception of free.  The pool
